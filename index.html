@@ -1,0 +1,1394 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Повелители Стихий - Онлайн RPG</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', 'Courier New', monospace;
+            background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 50%, #0f0f1a 100%);
+            min-height: 100vh;
+            color: #e0e0e0;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* ЭКРАН ВХОДА */
+        .auth-screen {
+            background: linear-gradient(135deg, rgba(0,0,0,0.9), rgba(20,20,40,0.95));
+            backdrop-filter: blur(20px);
+            border-radius: 30px;
+            padding: 40px;
+            max-width: 450px;
+            margin: 100px auto;
+            border: 2px solid rgba(100,100,200,0.3);
+        }
+
+        .auth-screen h2 {
+            text-align: center;
+            margin-bottom: 30px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        input, button {
+            width: 100%;
+            padding: 14px;
+            margin: 10px 0;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            transition: all 0.3s;
+        }
+
+        input {
+            background: rgba(20,20,40,0.9);
+            color: #e0e0e0;
+            border: 1px solid rgba(100,100,200,0.3);
+        }
+
+        button {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(102,126,234,0.4);
+        }
+
+        /* ПРОФИЛЬ */
+        .profile-panel {
+            background: linear-gradient(135deg, rgba(0,0,0,0.8), rgba(20,20,40,0.9));
+            border-radius: 20px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border: 1px solid rgba(100,100,200,0.2);
+        }
+
+        .stats {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            margin-top: 15px;
+        }
+
+        .stat {
+            background: rgba(0,0,0,0.6);
+            padding: 8px 16px;
+            border-radius: 10px;
+            border-left: 3px solid #667eea;
+        }
+
+        .exp-bar {
+            background: rgba(0,0,0,0.5);
+            border-radius: 10px;
+            padding: 5px;
+            margin-top: 10px;
+        }
+
+        .exp-fill {
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            height: 20px;
+            border-radius: 8px;
+            transition: width 0.3s;
+            text-align: center;
+            color: white;
+            font-size: 12px;
+            line-height: 20px;
+        }
+
+        .nav-buttons {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .nav-buttons button {
+            flex: 1;
+            min-width: 100px;
+            background: rgba(0,0,0,0.6);
+            border: 1px solid rgba(100,100,200,0.3);
+        }
+
+        .cards-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .card {
+            background: linear-gradient(135deg, rgba(30,30,50,0.9), rgba(15,15,30,0.95));
+            border-radius: 15px;
+            padding: 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            border: 1px solid rgba(100,100,200,0.3);
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            border-color: #667eea;
+        }
+
+        .card.common { border-top: 4px solid #aaa; }
+        .card.uncommon { border-top: 4px solid #2ecc71; }
+        .card.rare { border-top: 4px solid #3498db; }
+        .card.epic { border-top: 4px solid #9b59b6; }
+        .card.legendary { border-top: 4px solid #f39c12; }
+        .card.mythic { border-top: 4px solid #e74c3c; }
+        .card.secret { border-top: 4px solid #ff00ff; animation: secretGlow 2s infinite; }
+
+        @keyframes secretGlow {
+            0%, 100% { box-shadow: 0 0 5px #ff00ff; }
+            50% { box-shadow: 0 0 20px #ff00ff; }
+        }
+
+        .card-element { font-size: 48px; margin-bottom: 10px; }
+        .card-name { font-size: 18px; font-weight: bold; margin: 10px 0; }
+        .card-power { font-size: 24px; font-weight: bold; color: #ffd700; margin: 10px 0; }
+        .card-level { font-size: 14px; color: #aaa; }
+        .card-rarity { font-size: 12px; margin-top: 5px; padding: 3px 8px; border-radius: 10px; display: inline-block; }
+
+        .rarity-common { background: #555; color: #ddd; }
+        .rarity-uncommon { background: #2ecc71; color: #fff; }
+        .rarity-rare { background: #3498db; color: #fff; }
+        .rarity-epic { background: #9b59b6; color: #fff; }
+        .rarity-legendary { background: #f39c12; color: #fff; }
+        .rarity-mythic { background: #e74c3c; color: #fff; }
+        .rarity-secret { background: linear-gradient(135deg, #ff00ff, #ff69b4); color: #fff; }
+
+        .swap-btn {
+            background: rgba(0,0,0,0.7);
+            border: 1px solid gold;
+            padding: 5px 10px;
+            font-size: 12px;
+            margin-top: 10px;
+            width: auto;
+        }
+
+        .card-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.95);
+            backdrop-filter: blur(20px);
+            z-index: 1000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .card-modal-content {
+            background: linear-gradient(135deg, #1a1a2e, #0f0f1a);
+            border-radius: 30px;
+            padding: 40px;
+            max-width: 500px;
+            width: 90%;
+            border: 2px solid rgba(102,126,234,0.5);
+            position: relative;
+            text-align: center;
+        }
+
+        .close-modal {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(255,255,255,0.1);
+            border: none;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 20px;
+        }
+
+        .upgrade-btn {
+            background: linear-gradient(135deg, #f093fb, #f5576c);
+            margin-top: 20px;
+            font-size: 18px;
+        }
+
+        .cost-info {
+            background: rgba(0,0,0,0.5);
+            padding: 15px;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+
+        .admin-panel {
+            background: linear-gradient(135deg, rgba(0,0,0,0.95), rgba(30,20,40,0.95));
+            border: 2px solid #f093fb;
+            border-radius: 20px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+
+        .admin-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #f093fb;
+            padding-bottom: 10px;
+        }
+
+        .players-list {
+            max-height: 400px;
+            overflow-y: auto;
+            margin: 15px 0;
+        }
+
+        .player-item {
+            background: rgba(255,255,255,0.05);
+            border-radius: 10px;
+            padding: 10px;
+            margin: 10px 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+        }
+
+        .player-item:hover { background: rgba(255,255,255,0.1); }
+
+        .admin-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 15px; }
+        .admin-btn { background: rgba(0,0,0,0.5); border: 1px solid #f093fb; padding: 8px 12px; font-size: 12px; width: auto; }
+
+        .case-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .case-card {
+            background: linear-gradient(135deg, rgba(30,30,50,0.9), rgba(15,15,30,0.95));
+            border-radius: 15px;
+            padding: 20px;
+            text-align: center;
+            border: 2px solid gold;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .case-card:hover { transform: scale(1.05); box-shadow: 0 0 20px gold; }
+
+        .boss-map {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .boss-card {
+            background: linear-gradient(135deg, rgba(30,30,50,0.9), rgba(15,15,30,0.95));
+            border-radius: 15px;
+            padding: 20px;
+            text-align: center;
+            transition: all 0.3s;
+            border: 2px solid rgba(100,100,200,0.3);
+        }
+
+        .boss-card.available {
+            border-color: gold;
+            box-shadow: 0 0 20px rgba(255,215,0,0.3);
+            cursor: pointer;
+            animation: pulse 2s infinite;
+        }
+
+        .boss-card.locked { opacity: 0.5; filter: grayscale(0.5); cursor: not-allowed; }
+        .boss-card.defeated { border-color: #4caf50; background: linear-gradient(135deg, rgba(76,175,80,0.2), rgba(15,30,15,0.95)); }
+        .boss-card.cooldown { opacity: 0.7; filter: grayscale(0.3); cursor: wait; }
+
+        .boss-level { font-size: 20px; font-weight: bold; color: gold; }
+        .boss-name { font-size: 18px; margin: 10px 0; font-weight: bold; }
+        .boss-power { font-size: 20px; color: #ff6b6b; }
+        .boss-reward { font-size: 12px; color: gold; margin-top: 10px; }
+
+        .duel-opponents {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .opponent-card {
+            background: linear-gradient(135deg, rgba(30,30,50,0.9), rgba(15,15,30,0.95));
+            border-radius: 15px;
+            padding: 15px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            border: 1px solid rgba(100,100,200,0.3);
+        }
+
+        .opponent-card:hover { transform: translateY(-3px); border-color: gold; }
+
+        .battle-field {
+            background: linear-gradient(135deg, rgba(0,0,0,0.95), rgba(30,30,50,0.95));
+            border-radius: 20px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+
+        .enemy-cards {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: rgba(0,0,0,0.5);
+            border-radius: 15px;
+        }
+
+        .enemy-card-slot {
+            background: rgba(0,0,0,0.5);
+            border-radius: 10px;
+            padding: 15px;
+            text-align: center;
+            min-height: 120px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .hidden-card { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .question-mark { font-size: 48px; filter: blur(3px); }
+
+        .player-cards {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .player-card {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            border-radius: 10px;
+            padding: 15px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .player-card:hover { transform: scale(1.05); }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.03); }
+        }
+
+        .log {
+            background: rgba(0,0,0,0.6);
+            border-radius: 10px;
+            padding: 15px;
+            margin-top: 20px;
+            max-height: 200px;
+            overflow-y: auto;
+            font-family: monospace;
+        }
+
+        .log div { padding: 5px; border-left: 3px solid #667eea; margin: 5px 0; }
+
+        .hidden { display: none; }
+
+        .battle-info {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            padding: 15px;
+            background: rgba(0,0,0,0.5);
+            border-radius: 10px;
+        }
+
+        .hp-bar { font-size: 24px; font-weight: bold; }
+        .admin-badge { background: linear-gradient(135deg, #f093fb, #f5576c); padding: 5px 15px; border-radius: 20px; font-size: 12px; }
+        .secret-badge { background: linear-gradient(135deg, #ff00ff, #ff69b4); padding: 2px 8px; border-radius: 10px; font-size: 10px; margin-left: 5px; }
+        .loading { text-align: center; padding: 20px; color: gold; }
+        .share-info { background: rgba(0,0,0,0.5); border-radius: 10px; padding: 10px; margin-top: 10px; font-size: 12px; text-align: center; }
+        .online-count { background: #4caf50; padding: 2px 8px; border-radius: 10px; font-size: 12px; margin-left: 5px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div id="authScreen" class="auth-screen">
+            <h2>⚡ ПОВЕЛИТЕЛИ СТИХИЙ ⚡</h2>
+            <input type="text" id="loginInput" placeholder="Имя повелителя">
+            <input type="password" id="passwordInput" placeholder="Пароль">
+            <button onclick="register()">📜 Регистрация</button>
+            <button onclick="login()">🔮 Войти</button>
+            <div id="connectionStatus" class="stat" style="margin-top: 20px; text-align: center;">🔄 Подключение к серверу...</div>
+        </div>
+
+        <div id="gameScreen" class="hidden">
+            <div class="profile-panel">
+                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;">
+                    <div>
+                        <h2 id="playerName"></h2>
+                        <div class="stats">
+                            <div class="stat">⭐ Ур. <span id="playerLevel">1</span></div>
+                            <div class="stat">💪 Сила: <span id="playerPower">0</span></div>
+                            <div class="stat">🏆 Ранг: <span id="playerRank">1:1</span></div>
+                            <div class="stat">💰 Серебро: <span id="playerSilver">500</span></div>
+                            <div class="stat">👑 Золото: <span id="playerGold">0</span></div>
+                            <div class="stat" id="adminBadge" style="display: none;">👑 АДМИН</div>
+                            <div class="stat" id="onlineBadge">🟢 Онлайн: <span id="onlineCount">0</span></div>
+                        </div>
+                        <div class="exp-bar">
+                            <div class="exp-fill" id="expFill" style="width: 0%">0/100 опыта</div>
+                        </div>
+                    </div>
+                    <button onclick="logout()">🚪 Выход</button>
+                </div>
+            </div>
+
+            <div class="nav-buttons">
+                <button onclick="showSection('profile')">👤 Профиль</button>
+                <button onclick="showSection('deck')">🃏 Колода</button>
+                <button onclick="showSection('cases')">🎁 Кейсы</button>
+                <button onclick="showSection('campaign')">🏰 Кампания</button>
+                <button onclick="showSection('duels')">⚔️ Дуэли</button>
+                <button onclick="showSection('shop')">🏪 Магазин</button>
+                <button id="adminNavBtn" onclick="showSection('admin')" style="display: none; background: linear-gradient(135deg, #f093fb, #f5576c);">🛡️ МЕНЮ АДМИНА</button>
+            </div>
+
+            <div id="profileSection">
+                <h3>📊 Ваш профиль</h3>
+                <div class="stats">
+                    <div class="stat">🎯 Побед: <span id="duelWins">0</span></div>
+                    <div class="stat">💔 Поражений: <span id="duelLosses">0</span></div>
+                    <div class="stat">🏆 Побеждено боссов: <span id="bossKills">0</span></div>
+                </div>
+                <h3>🃏 Ваши карты</h3>
+                <div class="cards-grid" id="profileCards"></div>
+            </div>
+
+            <div id="deckSection" class="hidden">
+                <h3>🃏 Основная колода (9 карт)</h3>
+                <div class="cards-grid" id="deckCards"></div>
+                <h3>📦 Запасные карты</h3>
+                <div class="cards-grid" id="reserveCards"></div>
+            </div>
+
+            <div id="casesSection" class="hidden">
+                <h3>🎁 Кейсы с картами</h3>
+                <div class="case-container">
+                    <div class="case-card" onclick="openCase(1)">
+                        <h3>📦 Обычный кейс</h3>
+                        <p>Цена: 💰 1000 серебра</p>
+                        <div class="case-probabilities" id="case1Probs"></div>
+                    </div>
+                    <div class="case-card" onclick="openCase(2)">
+                        <h3>✨ Золотой кейс</h3>
+                        <p>Цена: 👑 20 золота</p>
+                        <div class="case-probabilities" id="case2Probs"></div>
+                    </div>
+                    <div class="case-card" onclick="openCase(3)">
+                        <h3>🌟 Мифический кейс</h3>
+                        <p>Цена: 👑 1000 золота</p>
+                        <div class="case-probabilities" id="case3Probs"></div>
+                    </div>
+                </div>
+                <div id="caseResult" style="margin-top: 20px;"></div>
+            </div>
+
+            <div id="campaignSection" class="hidden">
+                <h3>🏰 Карта кампании - Боссы</h3>
+                <div id="campaignInfo" class="stat" style="margin-bottom: 20px; text-align: center;"></div>
+                <div id="campaignMap" class="boss-map"></div>
+                <div id="campaignBattle" class="battle-field hidden">
+                    <button onclick="closeBattle()" style="width: auto; margin-bottom: 10px;">← Назад к карте</button>
+                    <div id="battleUI"></div>
+                </div>
+            </div>
+
+            <div id="duelsSection" class="hidden">
+                <h3>⚔️ Арена дуэлей</h3>
+                <div class="stats">
+                    <div class="stat">🏆 Побед: <span id="duelWins2">0</span></div>
+                    <div class="stat">💔 Поражений: <span id="duelLosses2">0</span></div>
+                </div>
+                <div id="duelContent"><div class="loading">Загрузка онлайн игроков...</div></div>
+                <div id="duelBattleArea" class="battle-field hidden">
+                    <button onclick="closeDuelBattle()" style="width: auto; margin-bottom: 10px;">← Назад к списку</button>
+                    <div id="duelBattleUI"></div>
+                </div>
+            </div>
+
+            <div id="shopSection" class="hidden">
+                <div id="shopContent"></div>
+            </div>
+
+            <div id="adminSection" class="hidden">
+                <div class="admin-panel">
+                    <div class="admin-header">
+                        <h3>🛡️ ПАНЕЛЬ АДМИНИСТРАТОРА</h3>
+                        <div class="admin-badge">Повелитель Стихий</div>
+                    </div>
+                    <div style="margin-bottom: 20px;">
+                        <input type="text" id="adminPlayerSearch" placeholder="Поиск игрока..." style="margin-bottom: 10px;">
+                        <button onclick="searchPlayers()" class="admin-btn">🔍 Найти</button>
+                        <button onclick="refreshPlayersList()" class="admin-btn">🔄 Обновить</button>
+                    </div>
+                    <div class="players-list" id="playersList"></div>
+                    <div id="selectedPlayerInfo" style="margin-top: 20px; padding: 15px; background: rgba(255,255,255,0.05); border-radius: 10px;">
+                        <h4>Редактирование игрока</h4>
+                        <div id="selectedPlayerData">Выберите игрока</div>
+                        <div class="admin-actions" id="adminActions" style="display: none;">
+                            <button onclick="addGold()" class="admin-btn">👑 + Золото</button>
+                            <button onclick="addSilver()" class="admin-btn">💰 + Серебро</button>
+                            <button onclick="addExp()" class="admin-btn">✨ + Опыт</button>
+                            <button onclick="toggleAdmin()" class="admin-btn" id="toggleAdminBtn">⭐ Сделать админом</button>
+                            <button onclick="deletePlayer()" class="admin-btn">🗑️ Удалить</button>
+                            <button onclick="openCardCreator()" class="admin-btn">🎴 Создать карту</button>
+                        </div>
+                    </div>
+                    <div style="margin-top: 20px;">
+                        <button onclick="resetAllData()" class="admin-btn" style="background: #f5576c;">💣 СБРОС ВСЕХ ДАННЫХ</button>
+                        <button onclick="exportData()" class="admin-btn">📤 Экспорт</button>
+                        <button onclick="importData()" class="admin-btn">📥 Импорт</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ==================== НАСТРОЙКИ SUPABASE ====================
+        // ⚠️ ВАЖНО: Замените эти значения на ваши из Supabase!
+        const SUPABASE_URL = 'https://ваш-проект.supabase.co';  // Вставьте ваш Project URL
+        const SUPABASE_KEY = 'ваш-anon-public-key';  // Вставьте ваш anon public key
+        
+        let supabase = null;
+        let currentPlayer = null;
+        let currentBattle = null;
+        let selectedAdminPlayer = null;
+        let bosses = [];
+        let timerInterval = null;
+        let currentOpponent = null;
+        let onlineUpdateInterval = null;
+        let selectedBoss = null;
+        
+        // ==================== КОНСТАНТЫ ====================
+        const RARITIES = {
+            common: { name: "Обычная", minLevel: 1, basePower: 10, color: "#aaa", icon: "⭐" },
+            uncommon: { name: "Необычная", minLevel: 10, basePower: 100, color: "#2ecc71", icon: "✨" },
+            rare: { name: "Редкая", minLevel: 25, basePower: 500, color: "#3498db", icon: "🌟" },
+            epic: { name: "Эпическая", minLevel: 50, basePower: 1000, color: "#9b59b6", icon: "💎" },
+            legendary: { name: "Легендарная", minLevel: 75, basePower: 1500, color: "#f39c12", icon: "👑" },
+            mythic: { name: "Мифическая", minLevel: 100, basePower: 2000, color: "#e74c3c", icon: "🌈" },
+            secret: { name: "Секретная", minLevel: 1, basePower: 5000, color: "#ff00ff", icon: "🔮" }
+        };
+
+        const CARDS_BY_RARITY = {
+            common: ["Водный Страж", "Земной Хранитель", "Огненный Дух", "Ветряной Элементаль", "Лесной Друид", "Каменный Голем", "Ледяной Маг", "Грозовой Птиц", "Песчаный Призрак", "Солнечный Луч"],
+            uncommon: ["Древний Элементаль", "Пламенный Феникс", "Ледяной Дракон", "Земной Титан", "Ветряной Властелин", "Водный Левиафан", "Громовой Страж", "Магический Страж", "Теневой Убийца", "Светлый Паладин"],
+            rare: ["Повелитель Вод", "Король Земли", "Император Огня", "Владыка Ветра", "Дракон Стихий", "Элементальный Лорд", "Астральный Страж", "Космический Странник", "Временной Хранитель", "Пространственный Маг"],
+            epic: ["Архимаг Времени", "Повелитель Хаоса", "Хранитель Равновесия", "Создатель Миров", "Разрушитель Галактик", "Защитник Вселенной", "Космический Дракон", "Астральный Титан", "Бесконечный Странник", "Всемогущий Элементаль"],
+            legendary: ["Абсолютный Ноль", "Бесконечный Огонь", "Вечный Ветер", "Несокрушимая Земля", "Первородный Хаос", "Изначальный Свет", "Бездонная Тьма", "Кристалл Времени", "Сердце Вселенной", "Душа Мироздания"],
+            mythic: ["Бог Стихий", "Творец Реальности", "Разрушитель Миров", "Хранитель Бесконечности", "Властелин Всего Сущего", "Абсолютное Начало", "Бесконечный Конец", "Первоисточник", "Гармония Хаоса", "Идеальный Порядок"],
+            secret: ["Тайный Страж", "Скрытый Элементаль", "Забытый Бог", "Древний Секрет", "Потусторонний Дух", "Астральный Призрак", "Космический Ужас", "Безымянный", "Непознанное", "Абсолют"]
+        };
+
+        let caseProbabilities = {
+            1: { common: 80.0, uncommon: 19.0, rare: 1.0 },
+            2: { rare: 70.0, epic: 25.0, legendary: 5.0 },
+            3: { legendary: 90.0, mythic: 10.0 }
+        };
+
+        // ==================== КЛАССЫ ====================
+        class Card {
+            constructor(name, element, power, level = 1, rarity = "common") {
+                this.name = name || "Неизвестная карта";
+                this.element = element || "вода";
+                this.basePower = safeNumber(power, 10);
+                this.level = safeNumber(level, 1);
+                this.rarity = rarity || "common";
+            }
+            getPower() {
+                const rarityInfo = RARITIES[this.rarity] || RARITIES.common;
+                const minLevel = safeNumber(rarityInfo.minLevel, 1);
+                const bonus = (this.level - minLevel) * 3;
+                return safeNumber(this.basePower + Math.max(0, bonus));
+            }
+            getUpgradeCost() {
+                const level = safeNumber(this.level, 1);
+                if (level % 10 === 0 && level > 0) return { type: 'gold', amount: safeNumber(Math.floor(level / 10) * 15, 15) };
+                return { type: 'silver', amount: safeNumber(Math.floor(level * 40), 40) };
+            }
+            getNextPower() {
+                const rarityInfo = RARITIES[this.rarity] || RARITIES.common;
+                const minLevel = safeNumber(rarityInfo.minLevel, 1);
+                const bonus = (this.level + 1 - minLevel) * 3;
+                return safeNumber(this.basePower + Math.max(0, bonus));
+            }
+            getRarityInfo() { return RARITIES[this.rarity] || RARITIES.common; }
+            isSecret() { return this.rarity === 'secret' || this.element === 'секрет'; }
+        }
+
+        class Boss {
+            constructor(id, name, element, power, reward, unlockCost) {
+                this.id = safeNumber(id, 1);
+                this.name = name || "Босс";
+                this.element = element || "вода";
+                this.power = safeNumber(power, 100);
+                this.reward = {
+                    silver: safeNumber(reward?.silver, 150),
+                    gold: safeNumber(reward?.gold, 0),
+                    exp: safeNumber(reward?.exp, 50),
+                    cardChance: safeNumber(reward?.cardChance, 0.3)
+                };
+                this.unlockCost = safeNumber(unlockCost, 0);
+                this.cooldownUntil = 0;
+                this.cards = [];
+                this.initCards();
+            }
+            initCards() {
+                const elements = ["вода", "земля", "огонь", "воздух"];
+                for (let i = 0; i < 9; i++) {
+                    const cardPower = this.power + Math.random() * (this.power * 0.3);
+                    this.cards.push(new Card(`${this.name} Страж ${i+1}`, elements[Math.floor(Math.random() * 4)], cardPower, 1 + Math.floor(this.id / 5), "rare"));
+                }
+            }
+            isOnCooldown() { return Date.now() < this.cooldownUntil; }
+            getCooldownRemaining() { return this.isOnCooldown() ? Math.ceil((this.cooldownUntil - Date.now()) / 1000) : 0; }
+            startCooldown() { this.cooldownUntil = Date.now() + 5 * 60 * 1000; }
+            getRequiredPower() { return this.power; }
+        }
+
+        class Player {
+            constructor(username, password) {
+                this.username = username || "Player";
+                this.password = password || "";
+                this.level = 1;
+                this.exp = 0;
+                this.silver = 500;
+                this.gold = 0;
+                this.duelWins = 0;
+                this.duelLosses = 0;
+                this.bossKills = 0;
+                this.defeatedBossIds = [];
+                this.unlockedBossIds = [1];
+                this.isAdmin = false;
+                this.mainDeck = [];
+                this.reserveCards = [];
+                this.initDeck();
+            }
+            getExpForNextLevel() { return safeNumber(Math.floor(100 * Math.pow(1.15, this.level - 1)), 100); }
+            addExp(amount) {
+                this.exp = safeNumber(this.exp + amount, 0);
+                while (this.exp >= this.getExpForNextLevel() && this.level < 1000) {
+                    this.exp -= this.getExpForNextLevel();
+                    this.level = safeNumber(this.level + 1, 1);
+                }
+                if (this.exp < 0) this.exp = 0;
+                if (this.level < 1) this.level = 1;
+            }
+            normalizeLevel() {
+                while (this.exp >= this.getExpForNextLevel() && this.level < 1000) {
+                    this.exp -= this.getExpForNextLevel();
+                    this.level++;
+                }
+                while (this.exp < 0 && this.level > 1) {
+                    this.exp += this.getExpForNextLevel();
+                    this.level--;
+                }
+                if (this.level < 1) { this.level = 1; this.exp = 0; }
+            }
+            initDeck() {
+                const elements = ["вода", "земля", "огонь", "воздух"];
+                for (let i = 0; i < 9; i++) {
+                    const element = elements[Math.floor(Math.random() * 4)];
+                    const power = 10 + Math.random() * 20;
+                    this.mainDeck.push(new Card(`Страж ${i+1}`, element, power, 1, "common"));
+                }
+            }
+            getTotalPower() { return safeNumber(this.mainDeck.reduce((sum, c) => sum + c.getPower(), 0)); }
+            getRank() {
+                const exp = safeNumber(this.exp, 0);
+                const ranks = [
+                    { min: 0, max: 100, name: "1:1" }, { min: 100, max: 200, name: "1:2" }, { min: 200, max: 500, name: "1:3" },
+                    { min: 500, max: 1000, name: "2:1" }, { min: 1000, max: 1500, name: "2:2" }, { min: 1500, max: 3000, name: "2:3" },
+                    { min: 3000, max: 4000, name: "3:1" }, { min: 4000, max: 5000, name: "3:2" }, { min: 5000, max: 8000, name: "3:3" },
+                    { min: 8000, max: 10000, name: "4:1" }, { min: 10000, max: 12000, name: "4:2" }, { min: 12000, max: 18000, name: "4:3" },
+                    { min: 18000, max: 21000, name: "5:1" }, { min: 21000, max: 24000, name: "5:2" }, { min: 24000, max: 50000, name: "5:3" }
+                ];
+                for (let rank of ranks) if (exp >= rank.min && exp < rank.max) return rank.name;
+                return "5:3";
+            }
+        }
+
+        class Battle {
+            constructor(player, enemy, isBoss = false, enemyName = "Противник") {
+                this.player = player;
+                this.enemy = enemy;
+                this.enemyName = enemyName;
+                this.playerHP = safeNumber(player.getTotalPower(), 100);
+                this.enemyHP = safeNumber(enemy.power || enemy.getTotalPower(), 100);
+                this.playerCards = player ? [...player.mainDeck] : [];
+                this.enemyCards = enemy ? (enemy.cards || [...enemy.mainDeck]) : [];
+                this.selectedPlayerCards = [];
+                this.selectedEnemyCards = [];
+                this.log = [];
+                this.isActive = true;
+                this.isBoss = isBoss;
+                this.initBattle();
+            }
+            initBattle() {
+                if (!this.playerCards.length) this.playerCards = [];
+                if (!this.enemyCards.length) this.enemyCards = [];
+                const shuffledPlayer = [...this.playerCards];
+                for (let i = shuffledPlayer.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [shuffledPlayer[i], shuffledPlayer[j]] = [shuffledPlayer[j], shuffledPlayer[i]];
+                }
+                this.selectedPlayerCards = shuffledPlayer.slice(0, 3);
+                const shuffledEnemy = [...this.enemyCards];
+                for (let i = shuffledEnemy.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [shuffledEnemy[i], shuffledEnemy[j]] = [shuffledEnemy[j], shuffledEnemy[i]];
+                }
+                this.selectedEnemyCards = shuffledEnemy.slice(0, 3);
+            }
+            addLog(msg) { this.log.unshift(msg || ""); if (this.log.length > 20) this.log.pop(); }
+            getMultiplierForCard(playerCard, enemyCard) {
+                if (!playerCard || !enemyCard) return 1;
+                return getElementMultiplier(playerCard.element, enemyCard.element);
+            }
+            playerTurn(playerCardIndex, enemyCardIndex) {
+                const playerCard = this.selectedPlayerCards[playerCardIndex];
+                const enemyCard = this.selectedEnemyCards[enemyCardIndex];
+                if (!playerCard || !enemyCard) return 'continue';
+                const multiplier = this.getMultiplierForCard(playerCard, enemyCard);
+                const damage = Math.floor(playerCard.getPower() * multiplier);
+                let msg = `${playerCard.name} (${getElementIcon(playerCard.element)}) → ${enemyCard.name} (${getElementIcon(enemyCard.element)}): `;
+                if (multiplier === 1.5) msg += "💥 КРИТИЧЕСКИЙ УДАР! x1.5 ";
+                else if (multiplier === 0.5) msg += "💔 СЛАБЫЙ УДАР! x0.5 ";
+                msg += `-${damage} HP`;
+                this.addLog(msg);
+                this.enemyHP = safeNumber(this.enemyHP - damage, 0);
+                const enemyMultiplier = this.getMultiplierForCard(enemyCard, playerCard);
+                const enemyDamage = Math.floor(enemyCard.getPower() * enemyMultiplier);
+                this.addLog(`${enemyCard.name} (${getElementIcon(enemyCard.element)}) → ${playerCard.name} (${getElementIcon(playerCard.element)}): -${enemyDamage} HP`);
+                this.playerHP = safeNumber(this.playerHP - enemyDamage, 0);
+                const newPlayerCard = this.getRandomCardFromDeck(this.playerCards);
+                if (newPlayerCard) this.selectedPlayerCards[playerCardIndex] = newPlayerCard;
+                const newEnemyCard = this.getRandomCardFromDeck(this.enemyCards);
+                if (newEnemyCard) this.selectedEnemyCards[enemyCardIndex] = newEnemyCard;
+                this.addLog(`❤️ Ваше HP: ${Math.max(0, this.playerHP)} | ${this.enemyName} HP: ${Math.max(0, this.enemyHP)}`);
+                if (this.enemyHP <= 0) { this.addLog("🏆 ПОБЕДА!"); this.isActive = false; return 'win'; }
+                if (this.playerHP <= 0) { this.addLog("💀 ПОРАЖЕНИЕ!"); this.isActive = false; return 'lose'; }
+                return 'continue';
+            }
+            getRandomCardFromDeck(deck) { return deck && deck.length ? deck[Math.floor(Math.random() * deck.length)] : null; }
+        }
+
+        // ==================== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ====================
+        function safeNumber(value, defaultValue = 0) { const num = Number(value); return isNaN(num) ? defaultValue : num; }
+        function safeFormat(value) { return Math.floor(safeNumber(value)); }
+        function getElementIcon(el) { const icons = { "вода": "💧", "земля": "🌍", "огонь": "🔥", "воздух": "💨", "секрет": "🌀" }; return icons[el] || "✨"; }
+        function getElementMultiplier(attackerElement, defenderElement) {
+            if (attackerElement === "секрет") return 1.5;
+            if (defenderElement === "секрет") return 1.0;
+            const strong = { "вода": "огонь", "огонь": "воздух", "воздух": "земля", "земля": "вода" };
+            if (strong[attackerElement] === defenderElement) return 1.5;
+            if (strong[defenderElement] === attackerElement) return 0.5;
+            return 1;
+        }
+        function getRankByExp(exp) {
+            const ranks = [
+                { min: 0, max: 100, name: "1:1" }, { min: 100, max: 200, name: "1:2" }, { min: 200, max: 500, name: "1:3" },
+                { min: 500, max: 1000, name: "2:1" }, { min: 1000, max: 1500, name: "2:2" }, { min: 1500, max: 3000, name: "2:3" },
+                { min: 3000, max: 4000, name: "3:1" }, { min: 4000, max: 5000, name: "3:2" }, { min: 5000, max: 8000, name: "3:3" },
+                { min: 8000, max: 10000, name: "4:1" }, { min: 10000, max: 12000, name: "4:2" }, { min: 12000, max: 18000, name: "4:3" },
+                { min: 18000, max: 21000, name: "5:1" }, { min: 21000, max: 24000, name: "5:2" }, { min: 24000, max: 50000, name: "5:3" }
+            ];
+            for (let rank of ranks) if (exp >= rank.min && exp < rank.max) return rank.name;
+            return "5:3";
+        }
+
+        // ==================== ИНИЦИАЛИЗАЦИЯ SUPABASE ====================
+        async function initSupabase() {
+            if (!SUPABASE_URL.includes('ваш-проект') && !SUPABASE_KEY.includes('ваш-anon')) {
+                supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+                const statusDiv = document.getElementById('connectionStatus');
+                if (statusDiv) {
+                    statusDiv.innerHTML = '✅ Подключено к серверу!';
+                    statusDiv.style.color = '#4caf50';
+                }
+                await createTablesIfNotExist();
+                await loadCaseProbabilities();
+                return true;
+            } else {
+                const statusDiv = document.getElementById('connectionStatus');
+                if (statusDiv) {
+                    statusDiv.innerHTML = '⚠️ Настройте Supabase в коде игры! (См. инструкцию в начале файла)';
+                    statusDiv.style.color = '#ff6b6b';
+                }
+                return false;
+            }
+        }
+
+        async function createTablesIfNotExist() {
+            try {
+                // Проверяем существование таблицы
+                const { error } = await supabase.from('players').select('count', { count: 'exact', head: true });
+                if (error && error.message.includes('does not exist')) {
+                    console.log('Таблицы не существуют, создаем...');
+                    alert('⚠️ Таблицы в базе данных не созданы!\n\nПожалуйста, выполните SQL скрипт из инструкции в Supabase SQL Editor.');
+                }
+            } catch(e) { console.log('Проверка таблиц:', e); }
+        }
+
+        // ==================== ФУНКЦИИ РАБОТЫ С СЕРВЕРОМ ====================
+        async function register() {
+            const login = document.getElementById('loginInput').value.trim();
+            const pwd = document.getElementById('passwordInput').value;
+            if (!login || !pwd) { alert("Заполните все поля!"); return; }
+            if (!supabase) await initSupabase();
+            
+            const { data: existing } = await supabase.from('players').select('username').eq('username', login).single();
+            if (existing) { alert("Игрок с таким именем уже существует!"); return; }
+            
+            const mainDeck = [];
+            const elements = ["вода", "земля", "огонь", "воздух"];
+            for (let i = 0; i < 9; i++) {
+                const element = elements[Math.floor(Math.random() * 4)];
+                const power = 10 + Math.random() * 20;
+                mainDeck.push({ name: `Страж ${i+1}`, element, power, level: 1, rarity: "common" });
+            }
+            
+            const { count } = await supabase.from('players').select('*', { count: 'exact', head: true });
+            const isFirst = count === 0;
+            
+            const { error } = await supabase.from('players').insert({
+                username: login, password: pwd, is_admin: isFirst,
+                main_deck: JSON.stringify(mainDeck), reserve_cards: JSON.stringify([]),
+                unlocked_boss_ids: JSON.stringify([1])
+            });
+            
+            if (error) { alert("Ошибка регистрации: " + error.message); return; }
+            alert(isFirst ? "✨ Вы первый игрок! Статус администратора получен!" : "Регистрация успешна!");
+        }
+
+        async function login() {
+            const login = document.getElementById('loginInput').value;
+            const pwd = document.getElementById('passwordInput').value;
+            if (!supabase) await initSupabase();
+            
+            const { data: player, error } = await supabase
+                .from('players')
+                .select('*')
+                .eq('username', login)
+                .eq('password', pwd)
+                .single();
+            
+            if (error || !player) { alert("Неверные данные!"); return; }
+            
+            await supabase.from('players').update({ last_active: new Date().toISOString() }).eq('username', login);
+            
+            currentPlayer = {
+                username: player.username, level: player.level, exp: player.exp,
+                silver: player.silver, gold: player.gold, duelWins: player.duel_wins,
+                duelLosses: player.duel_losses, bossKills: player.boss_kills,
+                defeatedBossIds: JSON.parse(player.defeated_boss_ids || '[]'),
+                unlockedBossIds: JSON.parse(player.unlocked_boss_ids || '[1]'),
+                isAdmin: player.is_admin,
+                mainDeck: JSON.parse(player.main_deck || '[]').map(c => new Card(c.name, c.element, c.power, c.level, c.rarity)),
+                reserveCards: JSON.parse(player.reserve_cards || '[]').map(c => new Card(c.name, c.element, c.power, c.level, c.rarity))
+            };
+            
+            document.getElementById('authScreen').classList.add('hidden');
+            document.getElementById('gameScreen').classList.remove('hidden');
+            
+            if (currentPlayer.isAdmin) {
+                document.getElementById('adminNavBtn').style.display = 'block';
+                document.getElementById('adminBadge').style.display = 'inline-block';
+            }
+            
+            updateProfileUI();
+            updateCaseDisplay();
+            renderCampaignMap();
+            showSection('profile');
+            startOnlineUpdate();
+        }
+
+        async function saveGame() {
+            if (!currentPlayer || !supabase) return;
+            await supabase.from('players').update({
+                level: currentPlayer.level, exp: currentPlayer.exp,
+                silver: currentPlayer.silver, gold: currentPlayer.gold,
+                duel_wins: currentPlayer.duelWins, duel_losses: currentPlayer.duelLosses,
+                boss_kills: currentPlayer.bossKills,
+                defeated_boss_ids: JSON.stringify(currentPlayer.defeatedBossIds),
+                unlocked_boss_ids: JSON.stringify(currentPlayer.unlockedBossIds),
+                main_deck: JSON.stringify(currentPlayer.mainDeck.map(c => ({ name: c.name, element: c.element, power: c.basePower, level: c.level, rarity: c.rarity }))),
+                reserve_cards: JSON.stringify(currentPlayer.reserveCards.map(c => ({ name: c.name, element: c.element, power: c.basePower, level: c.level, rarity: c.rarity }))),
+                last_active: new Date().toISOString()
+            }).eq('username', currentPlayer.username);
+        }
+
+        async function getOnlinePlayers() {
+            if (!supabase) return [];
+            const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+            const { data: players, error } = await supabase
+                .from('players')
+                .select('username, level, exp, duel_wins, duel_losses, main_deck')
+                .gte('last_active', fiveMinutesAgo)
+                .neq('username', currentPlayer.username);
+            
+            if (error) return [];
+            const onlineCount = players ? players.length : 0;
+            document.getElementById('onlineCount').textContent = onlineCount;
+            
+            return players.map(p => ({
+                username: p.username, level: p.level,
+                power: JSON.parse(p.main_deck || '[]').reduce((sum, c) => sum + (c.power + (c.level - 1) * 3), 0),
+                rank: getRankByExp(p.exp)
+            }));
+        }
+
+        async function loadCaseProbabilities() {
+            if (!supabase) return;
+            const { data } = await supabase.from('case_probabilities').select('id, probabilities');
+            if (data) { data.forEach(item => { caseProbabilities[item.id] = item.probabilities; }); updateCaseDisplay(); }
+        }
+
+        async function saveCaseProbabilities() {
+            if (!supabase) return;
+            for (let id in caseProbabilities) {
+                await supabase.from('case_probabilities').update({ probabilities: caseProbabilities[id] }).eq('id', parseInt(id));
+            }
+        }
+
+        async function getAllPlayers() {
+            if (!supabase) return [];
+            const { data } = await supabase.from('players').select('username, level, silver, gold, is_admin, duel_wins, duel_losses, boss_kills');
+            return data || [];
+        }
+
+        async function updatePlayerData(username, updates) {
+            if (!supabase) return;
+            await supabase.from('players').update(updates).eq('username', username);
+        }
+
+        async function deletePlayerData(username) {
+            if (!supabase) return;
+            await supabase.from('players').delete().eq('username', username);
+        }
+
+        // ==================== КАМПАНИЯ ====================
+        function initBosses() {
+            bosses = [];
+            const bossNames = ["Песчаный Страж", "Ледяной Дракон", "Пламенный Титан", "Ветряной Элементаль", "Каменный Голем", "Водный Левиафан", "Громовой Феникс", "Земной Король", "Огненный Лорд", "Воздушный Хищник", "Ледяная Королева", "Магматический Гигант", "Штормовой Страж", "Древний Энт", "Пеплорожденный", "Цунами", "Ураган", "Землетрясение", "Извержение", "Повелитель Стихий"];
+            const elements = ["вода", "земля", "огонь", "воздух"];
+            for (let i = 0; i < 20; i++) {
+                bosses.push(new Boss(i + 1, bossNames[i], elements[i % 4], 200 + i * 80, { silver: 300 + i * 80, gold: Math.floor(i / 3) + 2, exp: 100 + i * 20, cardChance: 0.4 + i * 0.02 }, 10 + i * 5));
+            }
+        }
+
+        function getAvailableBosses() {
+            if (!currentPlayer) return [];
+            const defeatedIds = currentPlayer.defeatedBossIds || [];
+            const unlockedIds = currentPlayer.unlockedBossIds || [];
+            let available = bosses.filter(b => unlockedIds.includes(b.id) && !defeatedIds.includes(b.id) && currentPlayer.getTotalPower() >= b.getRequiredPower() && !b.isOnCooldown());
+            available.sort((a, b) => a.id - b.id);
+            return available.slice(-3);
+        }
+
+        function renderCampaignMap() {
+            const mapDiv = document.getElementById('campaignMap');
+            if (!mapDiv) return;
+            mapDiv.innerHTML = '';
+            const defeatedIds = currentPlayer.defeatedBossIds || [];
+            const unlockedIds = currentPlayer.unlockedBossIds || [];
+            const available = getAvailableBosses();
+            const infoDiv = document.getElementById('campaignInfo');
+            if (infoDiv) infoDiv.innerHTML = `🎯 Побеждено: ${defeatedIds.length} | 🔓 Разблокировано: ${unlockedIds.length} | ⚔️ Доступно: ${available.length}`;
+            for (let boss of bosses) {
+                const isDefeated = defeatedIds.includes(boss.id);
+                const isUnlocked = unlockedIds.includes(boss.id);
+                const isAvailable = available.includes(boss);
+                const onCooldown = boss.isOnCooldown();
+                let statusClass = '', statusText = '', clickHandler = '';
+                if (isDefeated) { statusClass = 'defeated'; statusText = '<div style="color:#4caf50;">✓ ПОБЕЖДЕН</div>'; }
+                else if (isAvailable) { statusClass = 'available'; clickHandler = `onclick="startBossBattle(${boss.id})"`; statusText = '<div style="color:gold;">✨ ДОСТУПЕН</div>'; }
+                else if (onCooldown) { statusClass = 'cooldown'; const rem = boss.getCooldownRemaining(); statusText = `<div class="cooldown-timer">⏰ ${Math.floor(rem/60)}:${(rem%60).toString().padStart(2,'0')}</div>`; }
+                else if (isUnlocked && currentPlayer.getTotalPower() < boss.getRequiredPower()) { statusClass = 'locked'; statusText = `<div class="cooldown-timer">🔒 Требуется сила: ${boss.getRequiredPower()}</div>`; }
+                else if (!isUnlocked) { statusClass = 'locked'; const canUnlock = currentPlayer.gold >= boss.unlockCost && currentPlayer.getTotalPower() >= boss.getRequiredPower(); statusText = `<div class="boss-unlock">🔒 ${boss.unlockCost} золота<br>💪 ${boss.getRequiredPower()}<br>${canUnlock ? `<button onclick="unlockBoss(${boss.id})" class="admin-btn">🔓 Разблокировать</button>` : ''}</div>`; }
+                mapDiv.innerHTML += `<div class="boss-card ${statusClass}" ${clickHandler}><div class="boss-level">Босс ${boss.id}</div><div class="boss-name">${boss.name}</div><div class="boss-power">💪 ${safeFormat(boss.power)}</div><div class="boss-reward">🎁 ${safeFormat(boss.reward.silver)}💰 | 👑${safeFormat(boss.reward.gold)} | ✨${safeFormat(boss.reward.exp)} | 🎴${Math.floor(boss.reward.cardChance*100)}%</div>${statusText}</div>`;
+            }
+        }
+
+        async function unlockBoss(bossId) {
+            const boss = bosses.find(b => b.id === bossId);
+            if (boss && currentPlayer.gold >= boss.unlockCost && currentPlayer.getTotalPower() >= boss.getRequiredPower()) {
+                currentPlayer.gold -= boss.unlockCost;
+                if (!currentPlayer.unlockedBossIds.includes(boss.id)) currentPlayer.unlockedBossIds.push(boss.id);
+                await saveGame();
+                renderCampaignMap();
+                updateProfileUI();
+                alert(`🔓 Босс "${boss.name}" разблокирован!`);
+            }
+        }
+
+        async function startBossBattle(bossId) {
+            const boss = bosses.find(b => b.id === bossId);
+            if (!boss || boss.isOnCooldown() || !getAvailableBosses().includes(boss)) { alert("Босс недоступен!"); return; }
+            selectedBoss = boss;
+            currentBattle = new Battle(currentPlayer, boss, true, boss.name);
+            const battleDiv = document.getElementById('campaignBattle'), mapDiv = document.getElementById('campaignMap');
+            mapDiv.classList.add('hidden'); battleDiv.classList.remove('hidden');
+            renderBattleUI();
+        }
+
+        function renderBattleUI() {
+            const battleUI = document.getElementById('battleUI');
+            if (!battleUI || !currentBattle) return;
+            battleUI.innerHTML = `
+                <div class="battle-info"><div class="hp-bar">❤️ ВАШЕ HP: ${Math.max(0, safeFormat(currentBattle.playerHP))}</div><div class="hp-bar">❤️ ${selectedBoss?.name || "Босс"} HP: ${Math.max(0, safeFormat(currentBattle.enemyHP))}</div></div>
+                <h3>❓ Карты противника (скрыты)</h3><div class="enemy-cards">${currentBattle.selectedEnemyCards.map(() => `<div class="enemy-card-slot"><div class="hidden-card"><div class="question-mark">❓❓❓</div><div>???</div></div></div>`).join('')}</div>
+                <h3>🎴 Ваши карты</h3><div class="player-cards">${currentBattle.selectedPlayerCards.map((card, idx) => `<div class="player-card" onclick="makeBattleMove(${idx})"><div class="card-element">${getElementIcon(card.element)}</div><div>${card.name}</div><div class="card-power">💪 ${safeFormat(card.getPower())}</div><div>⭐ Ур.${card.level}</div><div class="card-rarity rarity-${card.rarity}">${card.getRarityInfo().name}</div></div>`).join('')}</div>
+                <div class="log" id="battleLog">${currentBattle.log.map(msg => `<div>${msg}</div>`).join('')}</div>`;
+        }
+
+        async function makeBattleMove(cardIndex) {
+            if (!currentBattle?.isActive) return;
+            const result = currentBattle.playerTurn(cardIndex, cardIndex);
+            const logDiv = document.getElementById('battleLog');
+            if (logDiv) logDiv.innerHTML = currentBattle.log.map(msg => `<div>${msg}</div>`).join('');
+            if (result === 'win') await endBattle(true);
+            else if (result === 'lose') await endBattle(false);
+            else renderBattleUI();
+        }
+
+        async function endBattle(isWin) {
+            if (isWin && selectedBoss) {
+                currentPlayer.silver += selectedBoss.reward.silver;
+                currentPlayer.gold += selectedBoss.reward.gold;
+                currentPlayer.addExp(selectedBoss.reward.exp);
+                if (!currentPlayer.defeatedBossIds.includes(selectedBoss.id)) currentPlayer.defeatedBossIds.push(selectedBoss.id);
+                if (Math.random() < selectedBoss.reward.cardChance) {
+                    const bossCard = new Card(`Трофей: ${selectedBoss.name}`, selectedBoss.element, selectedBoss.power * (0.8 + Math.random() * 0.4), RARITIES[["rare","epic","legendary"][Math.floor(Math.random()*3)]].minLevel, ["rare","epic","legendary"][Math.floor(Math.random()*3)]);
+                    currentPlayer.reserveCards.push(bossCard);
+                    alert(`🎉 Победа! +${selectedBoss.reward.silver}💰 +${selectedBoss.reward.gold}👑 +${selectedBoss.reward.exp}✨\n🎴 Получена карта: ${bossCard.name}!`);
+                } else alert(`🎉 Победа! +${selectedBoss.reward.silver}💰 +${selectedBoss.reward.gold}👑 +${selectedBoss.reward.exp}✨`);
+                selectedBoss.startCooldown();
+                await saveGame();
+                updateProfileUI();
+                renderCampaignMap();
+            } else alert("💀 Поражение!");
+            closeBattle();
+        }
+
+        function closeBattle() {
+            const battleDiv = document.getElementById('campaignBattle'), mapDiv = document.getElementById('campaignMap');
+            battleDiv.classList.add('hidden'); mapDiv.classList.remove('hidden');
+            currentBattle = null; selectedBoss = null;
+        }
+
+        // ==================== ДУЭЛИ ====================
+        async function updateDuelsUI() {
+            const duelDiv = document.getElementById('duelContent');
+            if (!duelDiv) return;
+            const players = await getOnlinePlayers();
+            if (players.length === 0) { duelDiv.innerHTML = '<div class="loading">🔍 Нет онлайн игроков. Пригласите друзей!</div>'; return; }
+            duelDiv.innerHTML = `<h4>🟢 Онлайн (${players.length})</h4><div class="duel-opponents">${players.map(p => `<div class="opponent-card" onclick="startDuelWith('${p.username}')"><div>👤 ${p.username}</div><div>⭐ Ур.${p.level}</div><div>💪 Сила: ${safeFormat(p.power)}</div><div>🏆 Ранг: ${p.rank}</div><button class="admin-btn">⚔️ Сразиться</button></div>`).join('')}</div>`;
+            document.getElementById('duelWins2').textContent = safeFormat(currentPlayer.duelWins);
+            document.getElementById('duelLosses2').textContent = safeFormat(currentPlayer.duelLosses);
+        }
+
+        async function startDuelWith(opponentName) {
+            const players = await getAllPlayers();
+            const opponentData = players.find(p => p.username === opponentName);
+            if (!opponentData) { alert("Соперник не найден!"); return; }
+            const opponent = new Player(opponentName, "");
+            opponent.level = opponentData.level;
+            opponent.exp = opponentData.exp;
+            const deckData = await supabase.from('players').select('main_deck').eq('username', opponentName).single();
+            opponent.mainDeck = JSON.parse(deckData.data?.main_deck || '[]').map(c => new Card(c.name, c.element, c.power, c.level, c.rarity));
+            currentOpponent = { username: opponentName, player: opponent, power: opponent.getTotalPower() };
+            currentBattle = new Battle(currentPlayer, opponent, false, opponentName);
+            document.getElementById('duelContent').classList.add('hidden');
+            document.getElementById('duelBattleArea').classList.remove('hidden');
+            renderDuelBattleUI();
+        }
+
+        function renderDuelBattleUI() {
+            const battleUI = document.getElementById('duelBattleUI');
+            if (!battleUI || !currentBattle) return;
+            battleUI.innerHTML = `
+                <div class="battle-info"><div class="hp-bar">❤️ ВАШЕ HP: ${Math.max(0, safeFormat(currentBattle.playerHP))}</div><div class="hp-bar">❤️ ${currentOpponent?.username} HP: ${Math.max(0, safeFormat(currentBattle.enemyHP))}</div></div>
+                <h3>🎴 Карты противника</h3><div class="enemy-cards">${currentBattle.selectedEnemyCards.map(card => `<div class="enemy-card-slot" style="background:linear-gradient(135deg,rgba(100,100,200,0.3),rgba(50,50,100,0.3));"><div><div class="card-element">${getElementIcon(card.element)}</div><div>${card.name}</div><div class="card-power">💪 ${safeFormat(card.getPower())}</div><div>⭐ Ур.${card.level}</div><div class="card-rarity rarity-${card.rarity}">${card.getRarityInfo().name}</div></div></div>`).join('')}</div>
+                <h3>🎴 Ваши карты</h3><div class="player-cards">${currentBattle.selectedPlayerCards.map((card, idx) => `<div class="player-card" onclick="makeDuelMove(${idx})"><div class="card-element">${getElementIcon(card.element)}</div><div>${card.name}</div><div class="card-power">💪 ${safeFormat(card.getPower())}</div><div>⭐ Ур.${card.level}</div><div class="card-rarity rarity-${card.rarity}">${card.getRarityInfo().name}</div></div>`).join('')}</div>
+                <div class="log" id="duelBattleLog">${currentBattle.log.map(msg => `<div>${msg}</div>`).join('')}</div>`;
+        }
+
+        async function makeDuelMove(cardIndex) {
+            if (!currentBattle?.isActive) return;
+            const result = currentBattle.playerTurn(cardIndex, cardIndex);
+            const logDiv = document.getElementById('duelBattleLog');
+            if (logDiv) logDiv.innerHTML = currentBattle.log.map(msg => `<div>${msg}</div>`).join('');
+            if (result === 'win') await endDuelBattle(true);
+            else if (result === 'lose') await endDuelBattle(false);
+            else renderDuelBattleUI();
+        }
+
+        async function endDuelBattle(isWin) {
+            if (isWin) {
+                const expReward = 50 + Math.floor(Math.random() * 100);
+                const silverReward = 100 + Math.floor(Math.random() * 200);
+                currentPlayer.silver += silverReward;
+                currentPlayer.addExp(expReward);
+                currentPlayer.duelWins++;
+                alert(`🎉 Победа! +${silverReward}💰 +${expReward}✨`);
+                await saveGame();
+                updateProfileUI();
+            } else {
+                currentPlayer.duelLosses++;
+                await saveGame();
+                alert("💀 Поражение!");
+            }
+            closeDuelBattle();
+        }
+
+        function closeDuelBattle() {
+            document.getElementById('duelContent').classList.remove('hidden');
+            document.getElementById('duelBattleArea').classList.add('hidden');
+            currentBattle = null;
+            currentOpponent = null;
+            updateDuelsUI();
+        }
+
+        // ==================== ОСТАЛЬНЫЕ UI ФУНКЦИИ ====================
+        function updateProfileUI() {
+            if (!currentPlayer) return;
+            document.getElementById('playerName').textContent = currentPlayer.username;
+            document.getElementById('playerLevel').textContent = safeFormat(currentPlayer.level);
+            document.getElementById('playerPower').textContent = safeFormat(currentPlayer.getTotalPower());
+            document.getElementById('playerRank').textContent = currentPlayer.getRank();
+            document.getElementById('playerSilver').textContent = safeFormat(currentPlayer.silver);
+            document.getElementById('playerGold').textContent = safeFormat(currentPlayer.gold);
+            document.getElementById('duelWins').textContent = safeFormat(currentPlayer.duelWins);
+            document.getElementById('duelLosses').textContent = safeFormat(currentPlayer.duelLosses);
+            document.getElementById('bossKills').textContent = safeFormat(currentPlayer.bossKills);
+            const expNeeded = currentPlayer.getExpForNextLevel();
+            const expFill = document.getElementById('expFill');
+            if (expFill) {
+                expFill.style.width = `${Math.min(100, (currentPlayer.exp / expNeeded) * 100)}%`;
+                expFill.textContent = `${safeFormat(currentPlayer.exp)}/${expNeeded} опыта`;
+            }
+            const profileCards = document.getElementById('profileCards');
+            if (profileCards) {
+                profileCards.innerHTML = '';
+                currentPlayer.mainDeck.forEach(card => profileCards.innerHTML += createCardHTML(card));
+            }
+        }
+
+        function createCardHTML(card, showSwap = false, type = 'main', idx = 0) {
+            return `<div class="card ${card.rarity}" onclick="openCardModal(${idx}, '${type}')"><div class="card-element">${getElementIcon(card.element)}</div><div class="card-name">${card.name}</div><div class="card-power">💪 ${safeFormat(card.getPower())}</div><div class="card-level">⭐ Ур.${card.level}</div><div class="card-rarity rarity-${card.rarity}">${card.getRarityInfo().name}</div>${showSwap ? `<button class="swap-btn" onclick="event.stopPropagation(); swapCards(${idx}, '${type}')">🔄 Поменять</button>` : ''}</div>`;
+        }
+
+        function openCardModal(idx, type) {
+            const card = type === 'main' ? currentPlayer.mainDeck[idx] : currentPlayer.reserveCards[idx];
+            if (!card) return;
+            const cost = card.getUpgradeCost();
+            const modal = document.createElement('div');
+            modal.className = 'card-modal';
+            modal.innerHTML = `<div class="card-modal-content"><button class="close-modal" onclick="this.closest('.card-modal').remove()">✕</button><div style="font-size:80px;">${getElementIcon(card.element)}</div><h2>${card.name}</h2><div style="font-size:36px;color:gold;">💪 ${safeFormat(card.getPower())}</div><div>⭐ Ур.${card.level}</div><div class="cost-info"><div>Следующий уровень: 💪 ${safeFormat(card.getNextPower())}</div><div>Стоимость: ${cost.type === 'silver' ? `💰 ${safeFormat(cost.amount)} серебра` : `👑 ${safeFormat(cost.amount)} золота`}</div></div><button class="upgrade-btn" onclick="upgradeCard(${idx}, '${type}')">🔮 Улучшить</button></div>`;
+            document.body.appendChild(modal);
+        }
+
+        async function upgradeCard(idx, type) {
+            const card = type === 'main' ? currentPlayer.mainDeck[idx] : currentPlayer.reserveCards[idx];
+            const cost = card.getUpgradeCost();
+            if ((cost.type === 'silver' && currentPlayer.silver >= cost.amount) || (cost.type === 'gold' && currentPlayer.gold >= cost.amount)) {
+                if (cost.type === 'silver') currentPlayer.silver -= cost.amount;
+                else currentPlayer.gold -= cost.amount;
+                card.level++;
+                await saveGame();
+                updateProfileUI();
+                if (type === 'main') updateDeckUI();
+                document.querySelector('.card-modal')?.remove();
+                alert(`${card.name} улучшена до ${card.level} уровня!`);
+            } else alert(`Недостаточно ${cost.type === 'silver' ? 'серебра' : 'золота'}! Нужно: ${safeFormat(cost.amount)}`);
+        }
+
+        function updateDeckUI() {
+            const deckDiv = document.getElementById('deckCards'), reserveDiv = document.getElementById('reserveCards');
+            deckDiv.innerHTML = '';
+            currentPlayer.mainDeck.forEach((card, idx) => deckDiv.innerHTML += createCardHTML(card, true, 'main', idx));
+            reserveDiv.innerHTML = '';
+            if (!currentPlayer.reserveCards.length) reserveDiv.innerHTML = '<p>Нет запасных карт. Открывайте кейсы!</p>';
+            else currentPlayer.reserveCards.forEach((card, idx) => reserveDiv.innerHTML += createCardHTML(card, false, 'reserve', idx));
+        }
+
+        function updateCaseDisplay() {
+            const c1 = document.getElementById('case1Probs'), c2 = document.getElementById('case2Probs'), c3 = document.getElementById('case3Probs');
+            if (c1) c1.innerHTML = `Обычная: ${caseProbabilities[1].common.toFixed(2)}%<br>Необычная: ${caseProbabilities[1].uncommon.toFixed(2)}%<br>Редкая: ${caseProbabilities[1].rare.toFixed(2)}%`;
+            if (c2) c2.innerHTML = `Редкая: ${caseProbabilities[2].rare.toFixed(2)}%<br>Эпическая: ${caseProbabilities[2].epic.toFixed(2)}%<br>Легендарная: ${caseProbabilities[2].legendary.toFixed(2)}%`;
+            if (c3) c3.innerHTML = `Легендарная: ${caseProbabilities[3].legendary.toFixed(2)}%<br>Мифическая: ${caseProbabilities[3].mythic.toFixed(2)}%`;
+        }
+
+        async function openCase(caseType) {
+            if (!currentPlayer) return;
+            let price = caseType === 1 ? 1000 : (caseType === 2 ? 20 : 1000);
+            let currency = caseType === 1 ? 'silver' : 'gold';
+            if ((currency === 'silver' && currentPlayer.silver < price) || (currency === 'gold' && currentPlayer.gold < price)) { alert(`Недостаточно ${currency === 'silver' ? 'серебра' : 'золота'}!`); return; }
+            if (currency === 'silver') currentPlayer.silver -= price;
+            else currentPlayer.gold -= price;
+            let rand = Math.random() * 100, cumulative = 0, selected = null;
+            for (let [r, ch] of Object.entries(caseProbabilities[caseType])) { cumulative += ch; if (rand <= cumulative) { selected = r; break; } }
+            if (!selected) selected = Object.keys(caseProbabilities[caseType])[0];
+            const oldChance = caseProbabilities[caseType][selected];
+            const decrease = Math.min(oldChance * 0.03, 0.5);
+            caseProbabilities[caseType][selected] = Math.max(0.5, oldChance - decrease);
+            const totalLoss = oldChance - caseProbabilities[caseType][selected];
+            const others = Object.keys(caseProbabilities[caseType]).filter(r => r !== selected);
+            const totalOther = others.reduce((s, r) => s + caseProbabilities[caseType][r], 0);
+            if (totalOther > 0) others.forEach(r => { caseProbabilities[caseType][r] += totalLoss * (caseProbabilities[caseType][r] / totalOther); });
+            let total = Object.values(caseProbabilities[caseType]).reduce((s, v) => s + v, 0);
+            if (Math.abs(total - 100) > 0.01) { let factor = 100 / total; for (let r in caseProbabilities[caseType]) caseProbabilities[caseType][r] = Math.max(0.5, Math.min(99.5, caseProbabilities[caseType][r] * factor)); }
+            await saveCaseProbabilities();
+            const newCard = generateRandomCard(selected);
+            currentPlayer.reserveCards.push(newCard);
+            await saveGame();
+            updateProfileUI();
+            updateCaseDisplay();
+            document.getElementById('caseResult').innerHTML = `<div class="card"><div class="card-element">${getElementIcon(newCard.element)}</div><div>${newCard.name}</div><div class="card-power">💪 ${safeFormat(newCard.getPower())}</div><div class="card-rarity rarity-${newCard.rarity}">${newCard.getRarityInfo().name}</div></div>`;
+            alert(`🎉 Получена карта: ${newCard.name} (${newCard.getRarityInfo().name})!`);
+        }
+
+        function generateRandomCard(rarity) {
+            const cards = CARDS_BY_RARITY[rarity];
+            const name = cards[Math.floor(Math.random() * cards.length)];
+            const elements = ["вода", "земля", "огонь", "воздух"];
+            const element = elements[Math.floor(Math.random() * 4)];
+            const power = RARITIES[rarity].basePower + Math.random() * (RARITIES[rarity].basePower * 0.2);
+            return new Card(name, element, power, RARITIES[rarity].minLevel, rarity);
+        }
+
+        function updateShopUI() { document.getElementById('shopContent').innerHTML = '<h3>🏪 Магазин</h3><div class="stats"><div class="stat">Карты продаются в кейсах!</div></div>'; }
+
+        function startOnlineUpdate() {
+            if (onlineUpdateInterval) clearInterval(onlineUpdateInterval);
+            onlineUpdateInterval = setInterval(async () => {
+                if (currentPlayer && document.getElementById('duelsSection') && !document.getElementById('duelsSection').classList.contains('hidden')) await updateDuelsUI();
+                if (currentPlayer && supabase) await supabase.from('players').update({ last_active: new Date().toISOString() }).eq('username', currentPlayer.username);
+            }, 30000);
+        }
+
+        async function logout() {
+            if (currentPlayer) await saveGame();
+            if (timerInterval) clearInterval(timerInterval);
+            if (onlineUpdateInterval) clearInterval(onlineUpdateInterval);
+            currentPlayer = null;
+            document.getElementById('authScreen').classList.remove('hidden');
+            document.getElementById('gameScreen').classList.add('hidden');
+        }
+
+        function showSection(section) {
+            ['profile', 'deck', 'cases', 'campaign', 'duels', 'shop', 'admin'].forEach(s => document.getElementById(`${s}Section`).classList.add('hidden'));
+            document.getElementById(`${section}Section`).classList.remove('hidden');
+            if (section === 'deck') updateDeckUI();
+            if (section === 'shop') updateShopUI();
+            if (section === 'admin' && currentPlayer?.isAdmin) refreshPlayersList();
+            if (section === 'cases') updateCaseDisplay();
+            if (section === 'campaign') { renderCampaignMap(); if (timerInterval) clearInterval(timerInterval); timerInterval = setInterval(() => { if (document.getElementById('campaignSection') && !document.getElementById('campaignSection').classList.contains('hidden')) renderCampaignMap(); }, 1000); }
+            if (section === 'duels') updateDuelsUI();
+        }
+
+        // ==================== АДМИН-ПАНЕЛЬ ====================
+        async function refreshPlayersList() {
+            const players = await getAllPlayers();
+            const listDiv = document.getElementById('playersList');
+            listDiv.innerHTML = '<h4>Список игроков:</h4>';
+            players.forEach(p => { listDiv.innerHTML += `<div class="player-item" onclick="selectPlayer('${p.username}')"><div><strong>${p.username}</strong> ${p.is_admin ? '👑' : ''}<br>Ур.${p.level}</div><div>💰${p.silver} | 👑${p.gold}</div></div>`; });
+        }
+
+        function selectPlayer(name) {
+            selectedAdminPlayer = name;
+            document.getElementById('selectedPlayerData').innerHTML = `<strong>${name}</strong><br>Выберите действие`;
+            document.getElementById('adminActions').style.display = 'flex';
+        }
+
+        async function addGold() { if (!selectedAdminPlayer) return; const amount = prompt('Сколько золота добавить?'); if (amount) { await updatePlayerData(selectedAdminPlayer, { gold: (await getAllPlayers()).find(p => p.username === selectedAdminPlayer).gold + parseInt(amount) }); if (selectedAdminPlayer === currentPlayer.username) currentPlayer.gold += parseInt(amount); refreshPlayersList(); updateProfileUI(); } }
+        async function addSilver() { if (!selectedAdminPlayer) return; const amount = prompt('Сколько серебра добавить?'); if (amount) { await updatePlayerData(selectedAdminPlayer, { silver: (await getAllPlayers()).find(p => p.username === selectedAdminPlayer).silver + parseInt(amount) }); if (selectedAdminPlayer === currentPlayer.username) currentPlayer.silver += parseInt(amount); refreshPlayersList(); updateProfileUI(); } }
+        async function addExp() { if (!selectedAdminPlayer) return; const amount = prompt('Сколько опыта добавить?'); if (amount) { await updatePlayerData(selectedAdminPlayer, { exp: (await getAllPlayers()).find(p => p.username === selectedAdminPlayer).exp + parseInt(amount) }); if (selectedAdminPlayer === currentPlayer.username) currentPlayer.addExp(parseInt(amount)); refreshPlayersList(); updateProfileUI(); } }
+        async function toggleAdmin() { if (!selectedAdminPlayer || selectedAdminPlayer === currentPlayer.username) { alert("Нельзя изменить свой статус!"); return; } const p = (await getAllPlayers()).find(p => p.username === selectedAdminPlayer); await updatePlayerData(selectedAdminPlayer, { is_admin: !p.is_admin }); refreshPlayersList(); alert(`Статус игрока ${selectedAdminPlayer} изменен!`); }
+        async function deletePlayer() { if (!selectedAdminPlayer || selectedAdminPlayer === currentPlayer.username) { alert("Нельзя удалить себя!"); return; } if (confirm(`Удалить ${selectedAdminPlayer}?`)) { await deletePlayerData(selectedAdminPlayer); refreshPlayersList(); document.getElementById('selectedPlayerData').innerHTML = 'Выберите игрока'; document.getElementById('adminActions').style.display = 'none'; } }
+        function openCardCreator() { if (!selectedAdminPlayer) { alert("Выберите игрока!"); return; } const modal = document.createElement('div'); modal.className = 'card-modal'; modal.innerHTML = `<div class="card-modal-content"><button class="close-modal" onclick="this.closest('.card-modal').remove()">✕</button><h3>Создание карты для ${selectedAdminPlayer}</h3><label>Название:</label><input type="text" id="cardName" placeholder="Название"><label>Стихия:</label><select id="cardElement"><option value="вода">💧 Вода</option><option value="земля">🌍 Земля</option><option value="огонь">🔥 Огонь</option><option value="воздух">💨 Воздух</option><option value="секрет">🌀 Секретная</option></select><label>Редкость:</label><select id="cardRarity"><option value="common">Обычная</option><option value="uncommon">Необычная</option><option value="rare">Редкая</option><option value="epic">Эпическая</option><option value="legendary">Легендарная</option><option value="mythic">Мифическая</option><option value="secret">Секретная</option></select><label>Сила:</label><input type="number" id="cardPower"><label>Уровень:</label><input type="number" id="cardLevel" value="1"><button onclick="createAndGiveCard()" class="upgrade-btn">Выдать</button></div>`; document.body.appendChild(modal); }
+        async function createAndGiveCard() { const name = document.getElementById('cardName').value; const element = document.getElementById('cardElement').value; const rarity = document.getElementById('cardRarity').value; let power = parseFloat(document.getElementById('cardPower').value); let level = parseInt(document.getElementById('cardLevel').value); const minPower = RARITIES[rarity].basePower; if (!name) { alert("Введите название!"); return; } if (isNaN(power) || power < minPower) power = minPower; if (isNaN(level) || level < RARITIES[rarity].minLevel) level = RARITIES[rarity].minLevel; const player = (await getAllPlayers()).find(p => p.username === selectedAdminPlayer); const reserveCards = JSON.parse(player.reserve_cards || '[]'); reserveCards.push({ name, element, power, level, rarity }); await updatePlayerData(selectedAdminPlayer, { reserve_cards: JSON.stringify(reserveCards) }); if (selectedAdminPlayer === currentPlayer.username) currentPlayer.reserveCards.push(new Card(name, element, power, level, rarity)); document.querySelector('.card-modal')?.remove(); alert(`Карта выдана!`); refreshPlayersList(); }
+        function resetAllData() { if (confirm('УДАЛИТЬ ВСЕХ ИГРОКОВ?')) { localStorage.removeItem('element_lords'); location.reload(); } }
+        function exportData() { const data = localStorage.getItem('element_lords'); const blob = new Blob([data], {type: 'application/json'}); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `backup_${new Date().toISOString()}.json`; a.click(); }
+        function importData() { const input = document.createElement('input'); input.type = 'file'; input.accept = 'application/json'; input.onchange = e => { const file = e.target.files[0]; const reader = new FileReader(); reader.onload = ev => { localStorage.setItem('element_lords', ev.target.result); alert('Импорт выполнен! Перезагрузите страницу.'); location.reload(); }; reader.readAsText(file); }; input.click(); }
+        function searchPlayers() { refreshPlayersList(); }
+
+        // Глобальные функции
+        window.register = register;
+        window.login = login;
+        window.logout = logout;
+        window.showSection = showSection;
+        window.openCardModal = openCardModal;
+        window.upgradeCard = upgradeCard;
+        window.swapCards = (idx, type) => { if (type !== 'main') return; if (!currentPlayer.reserveCards.length) { alert("Нет запасных карт!"); return; } const modal = document.createElement('div'); modal.className = 'card-modal'; modal.innerHTML = `<div class="card-modal-content"><button class="close-modal" onclick="this.closest('.card-modal').remove()">✕</button><h3>Выберите карту</h3>${currentPlayer.reserveCards.map((c, i) => `<div class="card" onclick="executeSwap(${idx}, ${i})"><div class="card-element">${getElementIcon(c.element)}</div><div>${c.name}</div><div>💪 ${safeFormat(c.getPower())}</div></div>`).join('')}</div>`; document.body.appendChild(modal); };
+        window.executeSwap = (mainIdx, reserveIdx) => { [currentPlayer.mainDeck[mainIdx], currentPlayer.reserveCards[reserveIdx]] = [currentPlayer.reserveCards[reserveIdx], currentPlayer.mainDeck[mainIdx]]; updateDeckUI(); updateProfileUI(); saveGame(); document.querySelector('.card-modal')?.remove(); alert("Карты обменяны!"); };
+        window.openCase = openCase;
+        window.startDuelWith = startDuelWith;
+        window.makeDuelMove = makeDuelMove;
+        window.closeDuelBattle = closeDuelBattle;
+        window.startBossBattle = startBossBattle;
+        window.makeBattleMove = makeBattleMove;
+        window.closeBattle = closeBattle;
+        window.unlockBoss = unlockBoss;
+        window.refreshPlayersList = refreshPlayersList;
+        window.selectPlayer = selectPlayer;
+        window.addGold = addGold;
+        window.addSilver = addSilver;
+        window.addExp = addExp;
+        window.toggleAdmin = toggleAdmin;
+        window.deletePlayer = deletePlayer;
+        window.openCardCreator = openCardCreator;
+        window.createAndGiveCard = createAndGiveCard;
+        window.resetAllData = resetAllData;
+        window.exportData = exportData;
+        window.importData = importData;
+        window.searchPlayers = searchPlayers;
+
+        // Запуск
+        initBosses();
+        initSupabase();
+        updatePlayerCount();
+        updateCaseDisplay();
+
+        function updatePlayerCount() {
+            getAllPlayers().then(players => {
+                const count = players.length;
+                const elem = document.getElementById('playerCountInfo');
+                if (elem) elem.textContent = `Игроков: ${count}`;
+            });
+        }
+    </script>
+</body>
+</html>
