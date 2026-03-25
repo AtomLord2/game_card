@@ -829,26 +829,55 @@
         }
 
         // ==================== ИНИЦИАЛИЗАЦИЯ SUPABASE ====================
-        async function initSupabase() {
-            if (!SUPABASE_URL.includes('ваш-проект') && !SUPABASE_KEY.includes('ваш-anon')) {
-                supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+       async function initSupabase() {
+    try {
+        // Проверяем, что URL и KEY не пустые
+        if (SUPABASE_URL && SUPABASE_KEY && 
+            !SUPABASE_URL.includes('ваш-проект') && 
+            !SUPABASE_KEY.includes('ваш-anon')) {
+            
+            supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+            
+            // Проверяем подключение
+            const { data, error } = await supabase.from('players').select('count', { count: 'exact', head: true });
+            
+            if (error) {
+                console.error('Ошибка подключения к Supabase:', error);
                 const statusDiv = document.getElementById('connectionStatus');
                 if (statusDiv) {
-                    statusDiv.innerHTML = '✅ Подключено к серверу!';
-                    statusDiv.style.color = '#4caf50';
-                }
-                await createTablesIfNotExist();
-                await loadCaseProbabilities();
-                return true;
-            } else {
-                const statusDiv = document.getElementById('connectionStatus');
-                if (statusDiv) {
-                    statusDiv.innerHTML = '⚠️ Настройте Supabase в коде игры! (См. инструкцию в начале файла)';
+                    statusDiv.innerHTML = '⚠️ Ошибка подключения к серверу! Проверьте настройки.';
                     statusDiv.style.color = '#ff6b6b';
                 }
                 return false;
             }
+            
+            const statusDiv = document.getElementById('connectionStatus');
+            if (statusDiv) {
+                statusDiv.innerHTML = '✅ Подключено к серверу!';
+                statusDiv.style.color = '#4caf50';
+            }
+            
+            await loadCaseProbabilities();
+            return true;
+        } else {
+            console.warn('Supabase не настроен. Используем локальное хранилище.');
+            const statusDiv = document.getElementById('connectionStatus');
+            if (statusDiv) {
+                statusDiv.innerHTML = '⚠️ Supabase не настроен! Используется локальное хранилище.';
+                statusDiv.style.color = '#ff6b6b';
+            }
+            return false;
         }
+    } catch (error) {
+        console.error('Ошибка инициализации Supabase:', error);
+        const statusDiv = document.getElementById('connectionStatus');
+        if (statusDiv) {
+            statusDiv.innerHTML = '❌ Ошибка подключения к серверу!';
+            statusDiv.style.color = '#ff6b6b';
+        }
+        return false;
+    }
+}
 
         async function createTablesIfNotExist() {
             try {
