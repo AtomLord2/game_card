@@ -1427,7 +1427,7 @@ async function checkSupabase() {
         window.searchPlayers = searchPlayers;
 
         // Запуск
-        // ==================== ЗАПУСК ИГРЫ ====================
+       // ==================== ЗАПУСК ИГРЫ ====================
 async function startGame() {
     console.log('Запуск игры...');
     initBosses();
@@ -1448,17 +1448,22 @@ async function startGame() {
     console.log('Игра запущена!');
 }
 
-// Запускаем
-startGame();
-
 // Функция обновления счетчика игроков
-function updatePlayerCount() {
-    getAllPlayers().then(players => {
+async function updatePlayerCount() {
+    try {
+        const players = await getAllPlayers();
         const count = players.length;
         const elem = document.getElementById('playerCountInfo');
         if (elem) elem.textContent = `Игроков: ${count}`;
-    });
+    } catch (e) {
+        console.error('Ошибка обновления счетчика:', e);
+        const elem = document.getElementById('playerCountInfo');
+        if (elem) elem.textContent = `Игроков: 0`;
+    }
 }
+
+// Запускаем игру
+startGame();
     </script>
 </body>
 </html>
