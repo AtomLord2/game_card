@@ -1427,18 +1427,38 @@ async function checkSupabase() {
         window.searchPlayers = searchPlayers;
 
         // Запуск
-        initBosses();
-        initSupabase();
-        updatePlayerCount();
-        updateCaseDisplay();
-
-        function updatePlayerCount() {
-            getAllPlayers().then(players => {
-                const count = players.length;
-                const elem = document.getElementById('playerCountInfo');
-                if (elem) elem.textContent = `Игроков: ${count}`;
-            });
+        // ==================== ЗАПУСК ИГРЫ ====================
+async function startGame() {
+    console.log('Запуск игры...');
+    initBosses();
+    
+    try {
+        await initSupabase();
+    } catch (e) {
+        console.error('Ошибка при инициализации:', e);
+        const statusDiv = document.getElementById('connectionStatus');
+        if (statusDiv) {
+            statusDiv.innerHTML = '❌ Ошибка подключения к серверу! Проверьте интернет и настройки.';
+            statusDiv.style.color = '#ff6b6b';
         }
+    }
+    
+    updatePlayerCount();
+    updateCaseDisplay();
+    console.log('Игра запущена!');
+}
+
+// Запускаем
+startGame();
+
+// Функция обновления счетчика игроков
+function updatePlayerCount() {
+    getAllPlayers().then(players => {
+        const count = players.length;
+        const elem = document.getElementById('playerCountInfo');
+        if (elem) elem.textContent = `Игроков: ${count}`;
+    });
+}
     </script>
 </body>
 </html>
