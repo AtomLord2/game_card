@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Повелители Стихий - Онлайн RPG</title>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         * {
             margin: 0;
@@ -424,7 +423,6 @@
         .admin-badge { background: linear-gradient(135deg, #f093fb, #f5576c); padding: 5px 15px; border-radius: 20px; font-size: 12px; }
         .secret-badge { background: linear-gradient(135deg, #ff00ff, #ff69b4); padding: 2px 8px; border-radius: 10px; font-size: 10px; margin-left: 5px; }
         .loading { text-align: center; padding: 20px; color: gold; }
-        .share-info { background: rgba(0,0,0,0.5); border-radius: 10px; padding: 10px; margin-top: 10px; font-size: 12px; text-align: center; }
         .online-count { background: #4caf50; padding: 2px 8px; border-radius: 10px; font-size: 12px; margin-left: 5px; }
     </style>
 </head>
@@ -825,6 +823,16 @@
             return "5:3";
         }
 
+        function safeJsonParse(str, defaultValue) {
+            if (!str) return defaultValue;
+            try {
+                return JSON.parse(str);
+            } catch (e) {
+                console.warn('JSON parse error:', str);
+                return defaultValue;
+            }
+        }
+
         // ==================== ФУНКЦИИ SUPABASE ====================
         async function supabaseRequest(endpoint, options = {}) {
             const url = `${SUPABASE_URL}/rest/v1/${endpoint}`;
@@ -835,12 +843,34 @@
                 ...options.headers
             };
             
-            const response = await fetch(url, { ...options, headers });
-            if (!response.ok) {
-                const error = await response.text();
-                throw new Error(error);
+            try {
+                const response = await fetch(url, { ...options, headers });
+                
+                if (!response.ok) {
+                    const text = await response.text();
+                    console.error('Supabase error:', text);
+                    throw new Error(`HTTP ${response.status}: ${text.substring(0, 100)}`);
+                }
+                
+                const contentType = response.headers.get('content-type');
+                if (contentType && contentType.includes('application/json')) {
+                    const text = await response.text();
+                    if (!text || text.trim() === '') {
+                        return [];
+                    }
+                    try {
+                        return JSON.parse(text);
+                    } catch (e) {
+                        console.error('JSON parse error:', text);
+                        return [];
+                    }
+                }
+                
+                return [];
+            } catch (error) {
+                console.error('Supabase request error:', error);
+                throw error;
             }
-            return response.json();
         }
 
         async function initSupabase() {
@@ -851,8 +881,8 @@
                     throw new Error('Supabase не настроен');
                 }
                 
-                // Проверяем подключение
-                const response = await fetch(`${SUPABASE_URL}/rest/v1/players?select=count&limit=0`, {
+                const response = await fetch(`${SUPABASE_URL}/rest/v1/players?limit=0`, {
+                    method: 'HEAD',
                     headers: {
                         'apikey': SUPABASE_KEY,
                         'Authorization': `Bearer ${SUPABASE_KEY}`
@@ -860,7 +890,7 @@
                 });
                 
                 if (!response.ok) {
-                    throw new Error('Ошибка подключения');
+                    throw new Error(`HTTP ${response.status}`);
                 }
                 
                 const statusDiv = document.getElementById('connectionStatus');
@@ -889,7 +919,6 @@
             if (!login || !pwd) { alert("Заполните все поля!"); return; }
             
             try {
-                // Проверяем существование игрока
                 const existing = await supabaseRequest(`players?username=eq.${encodeURIComponent(login)}&select=username`);
                 if (existing && existing.length > 0) {
                     alert("Игрок с таким именем уже существует!");
@@ -904,7 +933,6 @@
                     mainDeck.push({ name: `Страж ${i+1}`, element, power, level: 1, rarity: "common" });
                 }
                 
-                // Получаем количество игроков
                 const allPlayers = await supabaseRequest(`players?select=count`);
                 const isFirst = !allPlayers || allPlayers.length === 0;
                 
@@ -919,6 +947,7 @@
                 
                 alert(isFirst ? "✨ Вы первый игрок! Статус администратора получен!" : "Регистрация успешна!");
             } catch (error) {
+                console.error('Registration error:', error);
                 alert("Ошибка регистрации: " + error.message);
             }
         }
@@ -929,28 +958,32 @@
             
             try {
                 const players = await supabaseRequest(`players?username=eq.${encodeURIComponent(login)}&password=eq.${encodeURIComponent(pwd)}`);
-                const player = players && players[0];
                 
-                if (!player) {
+                if (!players || players.length === 0) {
                     alert("Неверные данные!");
                     return;
                 }
                 
-                // Обновляем время активности
-                await supabaseRequest(`players?username=eq.${encodeURIComponent(login)}`, {
-                    method: 'PATCH',
-                    body: JSON.stringify({ last_active: new Date().toISOString() })
-                });
+                const player = players[0];
+                
+                try {
+                    await supabaseRequest(`players?username=eq.${encodeURIComponent(login)}`, {
+                        method: 'PATCH',
+                        body: JSON.stringify({ last_active: new Date().toISOString() })
+                    });
+                } catch (e) {
+                    console.warn('Не удалось обновить время активности:', e);
+                }
                 
                 currentPlayer = {
                     username: player.username, level: player.level, exp: player.exp,
                     silver: player.silver, gold: player.gold, duelWins: player.duel_wins,
                     duelLosses: player.duel_losses, bossKills: player.boss_kills,
-                    defeatedBossIds: JSON.parse(player.defeated_boss_ids || '[]'),
-                    unlockedBossIds: JSON.parse(player.unlocked_boss_ids || '[1]'),
-                    isAdmin: player.is_admin,
-                    mainDeck: JSON.parse(player.main_deck || '[]').map(c => new Card(c.name, c.element, c.power, c.level, c.rarity)),
-                    reserveCards: JSON.parse(player.reserve_cards || '[]').map(c => new Card(c.name, c.element, c.power, c.level, c.rarity))
+                    defeatedBossIds: safeJsonParse(player.defeated_boss_ids, []),
+                    unlockedBossIds: safeJsonParse(player.unlocked_boss_ids, [1]),
+                    isAdmin: player.is_admin || false,
+                    mainDeck: safeJsonParse(player.main_deck, []).map(c => new Card(c.name, c.element, c.power, c.level, c.rarity || "common")),
+                    reserveCards: safeJsonParse(player.reserve_cards, []).map(c => new Card(c.name, c.element, c.power, c.level, c.rarity || "common"))
                 };
                 
                 document.getElementById('authScreen').classList.add('hidden');
@@ -967,6 +1000,7 @@
                 showSection('profile');
                 startOnlineUpdate();
             } catch (error) {
+                console.error('Login error:', error);
                 alert("Ошибка входа: " + error.message);
             }
         }
@@ -1000,12 +1034,13 @@
                 const players = await supabaseRequest(`players?select=username,level,exp,duel_wins,duel_losses,main_deck&last_active=gte.${encodeURIComponent(fiveMinutesAgo)}&username=neq.${encodeURIComponent(currentPlayer.username)}`);
                 
                 const onlineCount = players ? players.length : 0;
-                document.getElementById('onlineCount').textContent = onlineCount;
+                const onlineCountElem = document.getElementById('onlineCount');
+                if (onlineCountElem) onlineCountElem.textContent = onlineCount;
                 
-                return players.map(p => ({
+                return (players || []).map(p => ({
                     username: p.username, level: p.level,
-                    power: JSON.parse(p.main_deck || '[]').reduce((sum, c) => sum + (c.power + (c.level - 1) * 3), 0),
-                    rank: getRankByExp(p.exp)
+                    power: safeJsonParse(p.main_deck, []).reduce((sum, c) => sum + (c.power + (c.level - 1) * 3), 0),
+                    rank: getRankByExp(p.exp || 0)
                 }));
             } catch (error) {
                 console.error('Ошибка получения онлайн игроков:', error);
@@ -1016,9 +1051,11 @@
         async function loadCaseProbabilities() {
             try {
                 const data = await supabaseRequest('case_probabilities?select=id,probabilities');
-                if (data) {
+                if (data && data.length) {
                     data.forEach(item => {
-                        caseProbabilities[item.id] = item.probabilities;
+                        if (item.id && item.probabilities) {
+                            caseProbabilities[item.id] = item.probabilities;
+                        }
                     });
                     updateCaseDisplay();
                 }
@@ -1042,7 +1079,8 @@
 
         async function getAllPlayers() {
             try {
-                return await supabaseRequest('players?select=username,level,silver,gold,is_admin,duel_wins,duel_losses,boss_kills');
+                const result = await supabaseRequest('players?select=username,level,silver,gold,is_admin,duel_wins,duel_losses,boss_kills');
+                return result || [];
             } catch (error) {
                 console.error('Ошибка получения игроков:', error);
                 return [];
@@ -1199,7 +1237,7 @@
             opponent.level = opponentData.level;
             opponent.exp = opponentData.exp;
             const deckData = await supabaseRequest(`players?select=main_deck&username=eq.${encodeURIComponent(opponentName)}`);
-            opponent.mainDeck = JSON.parse(deckData[0]?.main_deck || '[]').map(c => new Card(c.name, c.element, c.power, c.level, c.rarity));
+            opponent.mainDeck = safeJsonParse(deckData[0]?.main_deck, []).map(c => new Card(c.name, c.element, c.power, c.level, c.rarity));
             currentOpponent = { username: opponentName, player: opponent, power: opponent.getTotalPower() };
             currentBattle = new Battle(currentPlayer, opponent, false, opponentName);
             document.getElementById('duelContent').classList.add('hidden');
@@ -1395,6 +1433,7 @@
         async function refreshPlayersList() {
             const players = await getAllPlayers();
             const listDiv = document.getElementById('playersList');
+            if (!listDiv) return;
             listDiv.innerHTML = '<h4>Список игроков:</h4>';
             players.forEach(p => { listDiv.innerHTML += `<div class="player-item" onclick="selectPlayer('${p.username}')"><div><strong>${p.username}</strong> ${p.is_admin ? '👑' : ''}<br>Ур.${p.level}</div><div>💰${p.silver} | 👑${p.gold}</div></div>`; });
         }
@@ -1411,7 +1450,7 @@
         async function toggleAdmin() { if (!selectedAdminPlayer || selectedAdminPlayer === currentPlayer.username) { alert("Нельзя изменить свой статус!"); return; } const players = await getAllPlayers(); const player = players.find(p => p.username === selectedAdminPlayer); await updatePlayerData(selectedAdminPlayer, { is_admin: !player.is_admin }); refreshPlayersList(); alert(`Статус игрока ${selectedAdminPlayer} изменен!`); }
         async function deletePlayer() { if (!selectedAdminPlayer || selectedAdminPlayer === currentPlayer.username) { alert("Нельзя удалить себя!"); return; } if (confirm(`Удалить ${selectedAdminPlayer}?`)) { await deletePlayerData(selectedAdminPlayer); refreshPlayersList(); document.getElementById('selectedPlayerData').innerHTML = 'Выберите игрока'; document.getElementById('adminActions').style.display = 'none'; } }
         function openCardCreator() { if (!selectedAdminPlayer) { alert("Выберите игрока!"); return; } const modal = document.createElement('div'); modal.className = 'card-modal'; modal.innerHTML = `<div class="card-modal-content"><button class="close-modal" onclick="this.closest('.card-modal').remove()">✕</button><h3>Создание карты для ${selectedAdminPlayer}</h3><label>Название:</label><input type="text" id="cardName" placeholder="Название"><label>Стихия:</label><select id="cardElement"><option value="вода">💧 Вода</option><option value="земля">🌍 Земля</option><option value="огонь">🔥 Огонь</option><option value="воздух">💨 Воздух</option><option value="секрет">🌀 Секретная</option></select><label>Редкость:</label><select id="cardRarity"><option value="common">Обычная</option><option value="uncommon">Необычная</option><option value="rare">Редкая</option><option value="epic">Эпическая</option><option value="legendary">Легендарная</option><option value="mythic">Мифическая</option><option value="secret">Секретная</option></select><label>Сила:</label><input type="number" id="cardPower"><label>Уровень:</label><input type="number" id="cardLevel" value="1"><button onclick="createAndGiveCard()" class="upgrade-btn">Выдать</button></div>`; document.body.appendChild(modal); }
-        async function createAndGiveCard() { const name = document.getElementById('cardName').value; const element = document.getElementById('cardElement').value; const rarity = document.getElementById('cardRarity').value; let power = parseFloat(document.getElementById('cardPower').value); let level = parseInt(document.getElementById('cardLevel').value); const minPower = RARITIES[rarity].basePower; if (!name) { alert("Введите название!"); return; } if (isNaN(power) || power < minPower) power = minPower; if (isNaN(level) || level < RARITIES[rarity].minLevel) level = RARITIES[rarity].minLevel; const players = await getAllPlayers(); const player = players.find(p => p.username === selectedAdminPlayer); const reserveCards = JSON.parse(player.reserve_cards || '[]'); reserveCards.push({ name, element, power, level, rarity }); await updatePlayerData(selectedAdminPlayer, { reserve_cards: JSON.stringify(reserveCards) }); if (selectedAdminPlayer === currentPlayer.username) currentPlayer.reserveCards.push(new Card(name, element, power, level, rarity)); document.querySelector('.card-modal')?.remove(); alert(`Карта выдана!`); refreshPlayersList(); }
+        async function createAndGiveCard() { const name = document.getElementById('cardName').value; const element = document.getElementById('cardElement').value; const rarity = document.getElementById('cardRarity').value; let power = parseFloat(document.getElementById('cardPower').value); let level = parseInt(document.getElementById('cardLevel').value); const minPower = RARITIES[rarity].basePower; if (!name) { alert("Введите название!"); return; } if (isNaN(power) || power < minPower) power = minPower; if (isNaN(level) || level < RARITIES[rarity].minLevel) level = RARITIES[rarity].minLevel; const players = await getAllPlayers(); const player = players.find(p => p.username === selectedAdminPlayer); const reserveCards = safeJsonParse(player.reserve_cards, []); reserveCards.push({ name, element, power, level, rarity }); await updatePlayerData(selectedAdminPlayer, { reserve_cards: JSON.stringify(reserveCards) }); if (selectedAdminPlayer === currentPlayer.username) currentPlayer.reserveCards.push(new Card(name, element, power, level, rarity)); document.querySelector('.card-modal')?.remove(); alert(`Карта выдана!`); refreshPlayersList(); }
         function resetAllData() { if (confirm('УДАЛИТЬ ВСЕХ ИГРОКОВ?')) { localStorage.removeItem('element_lords'); location.reload(); } }
         function exportData() { const data = localStorage.getItem('element_lords'); const blob = new Blob([data], {type: 'application/json'}); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `backup_${new Date().toISOString()}.json`; a.click(); }
         function importData() { const input = document.createElement('input'); input.type = 'file'; input.accept = 'application/json'; input.onchange = e => { const file = e.target.files[0]; const reader = new FileReader(); reader.onload = ev => { localStorage.setItem('element_lords', ev.target.result); alert('Импорт выполнен! Перезагрузите страницу.'); location.reload(); }; reader.readAsText(file); }; input.click(); }
@@ -1469,7 +1508,6 @@
             console.log('Игра запущена!');
         }
 
-        // Функция обновления счетчика игроков
         async function updatePlayerCount() {
             try {
                 const players = await getAllPlayers();
@@ -1483,7 +1521,6 @@
             }
         }
 
-        // Запускаем игру
         startGame();
     </script>
 </body>
