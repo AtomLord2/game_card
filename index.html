@@ -580,7 +580,7 @@
         const SUPABASE_URL = 'https://hrcigbmuizenfxozqgpk.supabase.co';  // Вставьте ваш Project URL https://hrcigbmuizenfxozqgpk.supabase.co
         const SUPABASE_KEY = 'sb_publishable_mPVVFEejvPhQ5nZJgyTrGg_LRQlLVDw';  // Вставьте ваш anon public key
         
-        let supabase = null;
+        
         let currentPlayer = null;
         let currentBattle = null;
         let selectedAdminPlayer = null;
@@ -839,7 +839,7 @@
             supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
             
             // Проверяем подключение
-            const { data, error } = await supabase.from('players').select('count', { count: 'exact', head: true });
+            const { data, error } = await window.supabaseClient('players').select('count', { count: 'exact', head: true });
             
             if (error) {
                 console.error('Ошибка подключения к Supabase:', error);
@@ -903,7 +903,7 @@ async function checkSupabase() {
         async function createTablesIfNotExist() {
             try {
                 // Проверяем существование таблицы
-                const { error } = await supabase.from('players').select('count', { count: 'exact', head: true });
+                const { error } = await window.supabaseClient('players').select('count', { count: 'exact', head: true });
                 if (error && error.message.includes('does not exist')) {
                     console.log('Таблицы не существуют, создаем...');
                     alert('⚠️ Таблицы в базе данных не созданы!\n\nПожалуйста, выполните SQL скрипт из инструкции в Supabase SQL Editor.');
@@ -918,7 +918,7 @@ async function checkSupabase() {
             if (!login || !pwd) { alert("Заполните все поля!"); return; }
             if (!supabase) await initSupabase();
             
-            const { data: existing } = await supabase.from('players').select('username').eq('username', login).single();
+            const { data: existing } = await window.supabaseClient('players').select('username').eq('username', login).single();
             if (existing) { alert("Игрок с таким именем уже существует!"); return; }
             
             const mainDeck = [];
@@ -929,10 +929,10 @@ async function checkSupabase() {
                 mainDeck.push({ name: `Страж ${i+1}`, element, power, level: 1, rarity: "common" });
             }
             
-            const { count } = await supabase.from('players').select('*', { count: 'exact', head: true });
+            const { count } = await window.supabaseClient('players').select('*', { count: 'exact', head: true });
             const isFirst = count === 0;
             
-            const { error } = await supabase.from('players').insert({
+            const { error } = await window.supabaseClient('players').insert({
                 username: login, password: pwd, is_admin: isFirst,
                 main_deck: JSON.stringify(mainDeck), reserve_cards: JSON.stringify([]),
                 unlocked_boss_ids: JSON.stringify([1])
@@ -956,7 +956,7 @@ async function checkSupabase() {
             
             if (error || !player) { alert("Неверные данные!"); return; }
             
-            await supabase.from('players').update({ last_active: new Date().toISOString() }).eq('username', login);
+            await window.supabaseClient('players').update({ last_active: new Date().toISOString() }).eq('username', login);
             
             currentPlayer = {
                 username: player.username, level: player.level, exp: player.exp,
@@ -986,7 +986,7 @@ async function checkSupabase() {
 
         async function saveGame() {
             if (!currentPlayer || !supabase) return;
-            await supabase.from('players').update({
+            await window.supabaseClient('players').update({
                 level: currentPlayer.level, exp: currentPlayer.exp,
                 silver: currentPlayer.silver, gold: currentPlayer.gold,
                 duel_wins: currentPlayer.duelWins, duel_losses: currentPlayer.duelLosses,
@@ -1021,31 +1021,31 @@ async function checkSupabase() {
 
         async function loadCaseProbabilities() {
             if (!supabase) return;
-            const { data } = await supabase.from('case_probabilities').select('id, probabilities');
+            const { data } = await window.supabaseClient('case_probabilities').select('id, probabilities');
             if (data) { data.forEach(item => { caseProbabilities[item.id] = item.probabilities; }); updateCaseDisplay(); }
         }
 
         async function saveCaseProbabilities() {
             if (!supabase) return;
             for (let id in caseProbabilities) {
-                await supabase.from('case_probabilities').update({ probabilities: caseProbabilities[id] }).eq('id', parseInt(id));
+                await window.supabaseClient('case_probabilities').update({ probabilities: caseProbabilities[id] }).eq('id', parseInt(id));
             }
         }
 
         async function getAllPlayers() {
             if (!supabase) return [];
-            const { data } = await supabase.from('players').select('username, level, silver, gold, is_admin, duel_wins, duel_losses, boss_kills');
+            const { data } = await window.supabaseClient('players').select('username, level, silver, gold, is_admin, duel_wins, duel_losses, boss_kills');
             return data || [];
         }
 
         async function updatePlayerData(username, updates) {
             if (!supabase) return;
-            await supabase.from('players').update(updates).eq('username', username);
+            await window.supabaseClient('players').update(updates).eq('username', username);
         }
 
         async function deletePlayerData(username) {
             if (!supabase) return;
-            await supabase.from('players').delete().eq('username', username);
+            await window.supabaseClient('players').delete().eq('username', username);
         }
 
         // ==================== КАМПАНИЯ ====================
@@ -1176,7 +1176,7 @@ async function checkSupabase() {
             const opponent = new Player(opponentName, "");
             opponent.level = opponentData.level;
             opponent.exp = opponentData.exp;
-            const deckData = await supabase.from('players').select('main_deck').eq('username', opponentName).single();
+            const deckData = await window.supabaseClient('players').select('main_deck').eq('username', opponentName).single();
             opponent.mainDeck = JSON.parse(deckData.data?.main_deck || '[]').map(c => new Card(c.name, c.element, c.power, c.level, c.rarity));
             currentOpponent = { username: opponentName, player: opponent, power: opponent.getTotalPower() };
             currentBattle = new Battle(currentPlayer, opponent, false, opponentName);
@@ -1345,7 +1345,7 @@ async function checkSupabase() {
             if (onlineUpdateInterval) clearInterval(onlineUpdateInterval);
             onlineUpdateInterval = setInterval(async () => {
                 if (currentPlayer && document.getElementById('duelsSection') && !document.getElementById('duelsSection').classList.contains('hidden')) await updateDuelsUI();
-                if (currentPlayer && supabase) await supabase.from('players').update({ last_active: new Date().toISOString() }).eq('username', currentPlayer.username);
+                if (currentPlayer && supabase) await window.supabaseClient('players').update({ last_active: new Date().toISOString() }).eq('username', currentPlayer.username);
             }, 30000);
         }
 
