@@ -878,7 +878,28 @@
         return false;
     }
 }
-
+async function checkSupabase() {
+    console.log('Проверка Supabase...');
+    console.log('URL:', SUPABASE_URL);
+    console.log('KEY:', SUPABASE_KEY ? 'Установлен' : 'Не установлен');
+    
+    try {
+        const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        const { data, error } = await client.from('players').select('*').limit(1);
+        
+        if (error) {
+            console.error('Ошибка запроса:', error);
+            alert('Ошибка: ' + error.message);
+        } else {
+            console.log('Успешное подключение! Данные:', data);
+            alert('Подключение работает!');
+        }
+    } catch (e) {
+        console.error('Исключение:', e);
+        alert('Ошибка: ' + e.message);
+    }
+}
+        
         async function createTablesIfNotExist() {
             try {
                 // Проверяем существование таблицы
